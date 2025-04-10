@@ -18,24 +18,15 @@ inputs:
       (e.g. 'test', 'docs')
     required: false
   manager:
-    description: Dependency manager used (e.g. poetry)
+    description: Dependency manager used (e.g. uv)
     required: false
-    default: "poetry"
+    default: "uv"
   install-library:
     description: |
       indicate if project library should be installed. 'true' installs from
       cloned repo, false skips install
     required: false
     default: "false"
-  install-deps-with:
-    description: |
-      install specified groups with dependency installation. Ignored if
-      install-deps-only is provided
-    required: false
-    default: dev
-  install-deps-only:
-    description: install only the specified dependency groups
-    required: false
   sparse-checkout:
     description: enables sparse-checkout on actions/checkout
     required: false
@@ -66,9 +57,9 @@ runs:
         path: ~/.local
         key: ${{ runner.os }}-${{ inputs.manager }}-${{ inputs.cache-id }}
 
-    - name: Install poetry
-      uses: snok/install-poetry@v1
-      if: inputs.manager == 'poetry' && steps.cached-manager.outputs.cache-hit != 'true'
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      if: inputs.manager == 'uv' && steps.cached-manager.outputs.cache-hit != 'true'
       with:
         virtualenvs-create: true
 
@@ -84,31 +75,10 @@ runs:
         python-version: ${{ inputs.python-version }}
         cache: "${{ inputs.manager }}"
         cache-dependency-path: |
-          **/poetry.lock
+          **/uv.lock
           .git/x-gh-cache-key
 
-    # Install dependencies with manager, if necessary
-    - name: Install dependencies (with)
-      if: >
-        inputs.manager == 'poetry' &&
-        steps.setup-python.outputs.cache-hit != 'true' &&
-        ! inputs.install-deps-only
-      shell: bash
-      run: >
-        poetry install --no-interaction --no-ansi --no-root
-        --with ${{ inputs.install-deps-with }} --all-extras
-
-    - name: Install dependencies (only)
-      if: >
-        inputs.manager == 'poetry' &&
-        steps.setup-python.outputs.cache-hit != 'true' &&
-        inputs.install-deps-only
-      shell: bash
-      run:  >
-        poetry install --no-interaction --no-ansi --no-root
-        --only ${{ inputs.install-deps-only }}
-
     - name: Install library
-      if: inputs.manager == 'poetry' && inputs.install-library == 'true'
+      if: inputs.manager == 'uv' && inputs.install-library == 'true'
       shell: bash
-      run: poetry install --no-interaction --no-ansi --all-extras
+      run: uv pip install -r pyproject.toml --all-extras
